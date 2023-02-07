@@ -6,14 +6,14 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\node\Entity\Node;
 use Drupal\Core\Url;
-
+use Drupal\Core\Batch\BatchBuilder;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class UserDashboardForm extends FormBase{
 
 	public function getFormId(){
 		return 'user_dashboard_form';
 	}
-
 
 	public function buildForm(array $form, FormStateInterface $form_state){
 		
@@ -111,7 +111,6 @@ class UserDashboardForm extends FormBase{
 			'#empty' => 'No results found'
 		];
 
-
 		return $form;
 	}
 
@@ -137,7 +136,17 @@ class UserDashboardForm extends FormBase{
 	public static function Export(&$form, FormStateInterface $form_state){
 		$query = \Drupal::entityQuery('node')->accessCheck(FALSE)->condition('type','user_profile');
 		$ids = $query->execute();
+		$batch = new BatchBuilder();
+		$batch->setTitle(t('Building export CSV...'))
+        ->setInitMessage(t('Initializing.'));
+        $batch->addOperation([get_called_class(),'processItems'], [$ids]);
+		$batch->setProgressMessage(t('Completed @current of @total.'))->setErrorMessage(t('An error has occurred.'));
+		$batch->setFile(\Drupal::service('extension.list.module')->getPath('user_dashboard') . '/src/Form/UserDashboardForm.php');
+    	$batch->setFinishCallback([get_called_class(),'finished']);
+    	batch_set($batch->toArray());
+	}
 
+	public static function processItems($ids, &$context){
 		$user_profiles = Node::loadMultiple($ids);
 		$profiles = [];
 		$profiles[0] = ['First Name', 'Last Name', 'Gender', 'Age', 'Created'];
@@ -148,13 +157,19 @@ class UserDashboardForm extends FormBase{
 		header("Content-Disposition: attachment; filename=user_profile.csv");
 		header("Pragma: no-cache");
 		header("Expires: 0");
-		$output = fopen("public://user_profile.csv", "w");
+		$output = fopen("public://user_profile1.csv", "w+");
 	    foreach ($profiles as $row) {
 	        fputcsv($output, $row);
 	    }
 	    fclose($output);
-	    readfile('public://user_profile.csv');
-		exit();
+	}
+
+	public static function finished(){
+  		$url = \Drupal::service('file_url_generator')->generateAbsoluteString('public://user_profile.csv');
+        \Drupal::messenger()->addMessage(t('<strong><a href="@link">Download CSV file</a></strong>', ['@link' => $url])
+        );
+        $response = new RedirectResponse('/user-profile-dashboard');
+  		$response->send();
 	}
 
 
