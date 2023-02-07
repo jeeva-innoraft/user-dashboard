@@ -1,0 +1,4 @@
+name: 'User Dashboard'
+type: module
+description: 'Shows the user dashboard'
+core_version_requirement: ^9 || ^10
