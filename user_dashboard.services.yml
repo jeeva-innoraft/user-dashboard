@@ -1,0 +1,3 @@
+services:
+  user_dashboard.export:
+    class: Drupal\user_dashboard\ExportService

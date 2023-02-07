@@ -6,8 +6,6 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\node\Entity\Node;
 use Drupal\Core\Url;
-use Drupal\Core\Batch\BatchBuilder;
-use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class UserDashboardForm extends FormBase{
 
@@ -22,7 +20,9 @@ class UserDashboardForm extends FormBase{
 			'#value' => t('Export'),
 			'#submit' => [[get_called_class(),'Export']],
 		];
+
 		$query = \Drupal::entityQuery('node')->accessCheck(FALSE)->condition('type','user_profile');
+
 		$name = $form_state->getValue('name');
 		$gender = $form_state->getValue('gender');
 		$age = $form_state->getValue('age');
@@ -30,29 +30,50 @@ class UserDashboardForm extends FormBase{
 		$rows = [];
 
 		$reset;
-		if($name == NULL && $gender  == NULL && $age == NULL){
+		if ($name == NULL && $gender  == NULL && $age == NULL) {
+
 			$query = $query;
 			$reset = 0;
+
 		}
-		if(!empty($name)){
+		if (!empty($name)) {
+
 			$query = $query->condition('field_first_name',$name,'CONTAINS');
 			$reset = 1;
-		}if (!empty($gender)) {
+
+		}
+
+		if (!empty($gender)) {
+
 			$reset = 1;
 			$query = $query->condition('field_gender',$gender);
+
 		}
-		if(!empty($age)){
+		if (!empty($age)) {
+
 			$reset = 1;
-			if($age == '0-25'){
+
+			if( $age == '0-25') {
+
 				$query = $query->condition('field_age',[0,25],'BETWEEN');
-			}elseif ($age == '25-40') {
-				$query = $query->condition('field_age',[26,40],'BETWEEN');
+
 			}
+
+			elseif ($age == '25-40') {
+
+				$query = $query->condition('field_age',[26,40],'BETWEEN');
+
+			}
+
 			elseif ($age == '40-60') {
+
 				$query = $query->condition('field_age',[41,60],'BETWEEN');
 			}
+
 			else{
+
 				$query = $query->condition('field_age',60,'>');
+
 			}
 		}
 		$ids = $query->pager(10)->execute();
@@ -96,7 +117,7 @@ class UserDashboardForm extends FormBase{
 			'#value' => t('Apply'),
 		];
 
-		if($reset == 1){
+		if ($reset == 1) {
 			$form['reset'] = [
 			'#type' => 'submit',
 			'#value' => t('Reset'),
@@ -137,43 +158,13 @@ class UserDashboardForm extends FormBase{
 	}
 
 	public static function Export(&$form, FormStateInterface $form_state){
-		$query = \Drupal::entityQuery('node')->accessCheck(FALSE)->condition('type','user_profile');
-		$ids = $query->execute();
-		$batch = new BatchBuilder();
-		$batch->setTitle(t('Building export CSV...'))
-        ->setInitMessage(t('Initializing.'));
-        $batch->addOperation([get_called_class(),'processItems'], [$ids]);
-		$batch->setProgressMessage(t('Completed @current of @total.'))->setErrorMessage(t('An error has occurred.'));
-		$batch->setFile(\Drupal::service('extension.list.module')->getPath('user_dashboard') . '/src/Form/UserDashboardForm.php');
-    	$batch->setFinishCallback([get_called_class(),'finished']);
-    	batch_set($batch->toArray());
+		$filename = 'user_demo1.csv';
+		\Drupal::service('user_dashboard.export')->export('user_profile',$filename);
+		$download_url = \Drupal::service('file_url_generator')->generateAbsoluteString('public://'.$filename);
+	    \Drupal::messenger()->addMessage(t('<strong><a href="@link">Download CSV file</a></strong>', ['@link' => $download_url])
+	    );
 	}
 
-	public static function processItems($ids, &$context){
-		$user_profiles = Node::loadMultiple($ids);
-		$profiles = [];
-		$profiles[0] = ['First Name', 'Last Name', 'Gender', 'Age', 'Created'];
-		foreach($user_profiles as $user_profile){
-			$profiles[] = [$user_profile->get('field_first_name')->value,$user_profile->get('field_last_name')->value,$user_profile->get('field_gender')->value,$user_profile->get('field_age')->value,\Drupal::service('date.formatter')->format((int)$user_profile->getCreatedTime(),'html_date')]; 
-		}
-		header("Content-type: text/csv");
-		header("Content-Disposition: attachment; filename=user_profile.csv");
-		header("Pragma: no-cache");
-		header("Expires: 0");
-		$output = fopen("public://user_profile1.csv", "w+");
-	    foreach ($profiles as $row) {
-	        fputcsv($output, $row);
-	    }
-	    fclose($output);
-	}
-
-	public static function finished(){
-  		$url = \Drupal::service('file_url_generator')->generateAbsoluteString('public://user_profile.csv');
-        \Drupal::messenger()->addMessage(t('<strong><a href="@link">Download CSV file</a></strong>', ['@link' => $url])
-        );
-        $response = new RedirectResponse('/user-profile-dashboard');
-  		$response->send();
-	}
 
 
 }
