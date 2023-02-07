@@ -55,7 +55,7 @@ class UserDashboardForm extends FormBase{
 				$query = $query->condition('field_age',60,'>');
 			}
 		}
-		$ids = $query->execute();
+		$ids = $query->pager(10)->execute();
 
 		$user_profiles = Node::loadMultiple($ids);
 		
@@ -109,6 +109,9 @@ class UserDashboardForm extends FormBase{
 			'#header' => $header,
 			'#rows' => $rows,
 			'#empty' => 'No results found'
+		];
+		$form['pager'] = [
+			'#type' => 'pager'
 		];
 
 		return $form;
