@@ -7,11 +7,19 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\node\Entity\Node;
 use Drupal\Core\Url;
 
+/**
+ * Display user profile data.
+ */
+
 class UserDashboardForm extends FormBase{
+
+	// Implements getFormId() to get form ID.
 
 	public function getFormId(){
 		return 'user_dashboard_form';
 	}
+
+	// Implements buildForm() to build the form.
 
 	public function buildForm(array $form, FormStateInterface $form_state){
 		
@@ -29,6 +37,8 @@ class UserDashboardForm extends FormBase{
 		$header = ['First Name','Last Name','Gender','Age','Created'];
 		$rows = [];
 		$reset;
+
+		// Filter condition to get the results
 
 		if ($name == NULL && $gender == NULL && $age == NULL) {
 
@@ -82,10 +92,18 @@ class UserDashboardForm extends FormBase{
 		$ids = $query->pager(10)->execute();
 
 		$user_profiles = Node::loadMultiple($ids);
+
+		// Fetch the User profile data.
 		
 		foreach ($user_profiles as $user_profile) {
 
-			$rows[] = ['first_name' => $user_profile->get('field_first_name')->value,'last_name' => $user_profile->get('field_last_name')->value,'Gender' => $user_profile->get('field_gender')->value, 'age'=>$user_profile->get('field_age')->value,'created'=>\Drupal::service('date.formatter')->format((int)$user_profile->getCreatedTime(),'html_date')];
+			$rows[] = [
+				'first_name' => $user_profile->get('field_first_name')->value,
+				'last_name' => $user_profile->get('field_last_name')->value,
+				'Gender' => $user_profile->get('field_gender')->value,
+				'age' => $user_profile->get('field_age')->value,
+				'created' => \Drupal::service('date.formatter')->format((int)$user_profile->getCreatedTime(),'html_date')
+			];
 
 		}
 
@@ -132,6 +150,8 @@ class UserDashboardForm extends FormBase{
 
 		}
 
+		// Implements Table View
+
 		$form['user_table'] =[
 			'#type' => 'table',
 			'#cache' => ['max-age'=>0],
@@ -140,6 +160,8 @@ class UserDashboardForm extends FormBase{
 			'#empty' => 'No results found'
 		];
 		
+		// Implements Pager
+
 		$form['pager'] = [
 			'#type' => 'pager'
 		];
@@ -148,11 +170,17 @@ class UserDashboardForm extends FormBase{
 
 	}
 
+	// Implements validateForm() to validate the form.
+
 	public function validateForm(&$form, FormStateInterface $form_state){
 
 	}
 
+	// Implements submitForm() to execute the submit function.
+
 	public function submitForm(&$form, FormStateInterface $form_state){
+
+		// Set the values on current form state.
 
 		$name = $form_state->getValue('name');
 		$gender = $form_state->getValue('gender');
@@ -164,6 +192,9 @@ class UserDashboardForm extends FormBase{
 		return $form;
 
 	}
+
+	// Implements Reset() to reset the filters.
+
 	public static function Reset(&$form, FormStateInterface $form_state){
 
 		$url = Url::fromRoute('user_dashboard.page');
@@ -171,16 +202,23 @@ class UserDashboardForm extends FormBase{
 
 	}
 
+	// Implements Export() to export the data.
+
 	public static function Export(&$form, FormStateInterface $form_state){
 
 		$filename = 'user_demo1.csv';
+
+		// Implements the Custom export created from the custom module.
+
 		\Drupal::service('user_dashboard.export')->export('user_profile',$filename);
+        
+        // file_url_generator service used to get the URL to download CSV file.
+
 		$download_url = \Drupal::service('file_url_generator')->generateAbsoluteString('public://'.$filename);
+
 	    \Drupal::messenger()->addMessage(t('<strong><a href="@link">Download CSV file</a></strong>', ['@link' => $download_url])
 	    );
 
 	}
-
-
 
 }
