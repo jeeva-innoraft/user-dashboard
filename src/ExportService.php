@@ -60,7 +60,7 @@ class ExportService{
 		$contents[0] = $labels;
 		$nodes = Node::loadMultiple($ids);
 
-		// Fetching field datas
+		// Fetching field data
 
 		foreach ($nodes as $node){
 
